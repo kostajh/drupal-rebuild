@@ -1,0 +1,20 @@
+#!/usr/bin/env php
+<?php
+
+/*
+ * This file is part of the Drupal Rebuild Console utility.
+ */
+
+/**
+ * @author Kosta Harlan <kosta@harlan.mayfirst.org>
+ */
+
+(@include_once __DIR__ . '/../vendor/autoload.php') || @include_once __DIR__ . '/../../../autoload.php';
+
+use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Command;
+use DrupalRebuild\Command\RebuildCommand;
+
+$app = new Application();
+$app->add(new RebuildCommand);
+$app->run();

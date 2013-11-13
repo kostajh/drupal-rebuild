@@ -1,0 +1,20 @@
+{
+  "name": "kostajh/drupal-rebuild",
+  "description": "A command line utility for rebuilding a local Drupal site environment.",
+  "license": "GPL-2.0+",
+  "require": {
+      "symfony/console": "2.*",
+      "symfony/yaml": "2.*",
+      "symfony/filesystem": "2.*",
+      "symfony/process": "2.*",
+      "drush/drush": "6.1.0",
+      "guzzle/guzzle": "3.7.*@dev"
+  },
+  "autoload": {
+      "psr-0": { "DrupalRebuild": "src/" }
+  },
+  "bin": ["drupal-rebuild"],
+  "require-dev": {
+      "phpunit/phpunit": "~3.7.0"
+  }
+}

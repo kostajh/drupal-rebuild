@@ -1,0 +1,6 @@
+{
+    "directories": ["src/", "vendor/"],
+    "main": "bin/drupal-rebuild",
+    "output": "drupal-rebuild.phar",
+    "stub": true
+}
