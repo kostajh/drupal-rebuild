@@ -31,8 +31,7 @@ class DrupalRebuild
 
     public function run()
     {
-        $rebuilder = new Rebuilder();
-        $rebuilder->run();
+        // Call subclasses.
     }
 
     /**
@@ -59,17 +58,8 @@ class DrupalRebuild
     $yaml = new Parser();
     try {
       $config = $yaml->parse(file_get_contents($rebuild_config_path));
-      print_r($config);
+      // Allow overriding the default target.
       $config['general']['target'] = $this->target;
-      if (isset($config['general']['description'])) {
-        // drush_log(dt('- Description: !desc', array('!desc' => $config['general']['description'])), 'ok');
-      }
-      if (isset($config['general']['version'])) {
-        // drush_log(dt('- Config Version: !version', array('!version' => $config['general']['version'])), 'ok');
-      }
-      if (isset($config['general']['authors'])) {
-        // drush_log(dt('- Author(s): !authors', array('!authors' => implode(",", $config['general']['authors']))), 'ok');
-      }
       // Load overrides.
       $this->config = $config;
       $this->setConfigOverrides();

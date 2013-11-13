@@ -12,6 +12,9 @@ use DrupalRebuild\DrupalRebuild;
 
 class RebuildCommand extends Command
 {
+    /**
+     * Set command name.
+     */
     protected function configure()
     {
         $this
