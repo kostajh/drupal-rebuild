@@ -1,4 +1,4 @@
-drupal-rebuild
+drubuild
 ==============
 
-Experimental rewrite of Drush Rebuild using Symfony2 components.
+drubuild (drupal + rebuild) is an experimental rewrite of Drush Rebuild using Symfony2 components.
