@@ -6,9 +6,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Process\Process;
 use DrupalRebuild\Drush\Drush;
 use DrupalRebuild\DrupalRebuild;
+use DrupalRebuild\Steps\DrushScript;
 
 class RebuildCommand extends Command
 {
@@ -30,10 +30,16 @@ class RebuildCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $alias = $input->getArgument('DrushAlias');
-        $rebuild = new DrupalRebuild($alias);
+        // TODO: validate alias.
+        $rebuild = new DrupalRebuild();
         $rebuild->setOutputHandler($output);
-        $output->writeln(sprintf('<info>Loaded alias for %s</info>', $alias));
+        // TODO: Preflight.
+        $rebuild->init($alias);
+        if ($rebuild->drush->getErrorStatus() == 1) {
+            return false;
+        }
         $env = $rebuild->getEnvironment();
+        $output->writeln(sprintf('<info>Loaded alias for %s</info>', $alias));
         $output->writeln(sprintf('<info>Docroot: %s</info>', $env['root']));
         $output->writeln(sprintf('<info>URI: %s</info>', $env['uri']));
         $output->writeln(sprintf('<info>Rebuild Config: %s</info>', $env['path-aliases']['%rebuild']));

@@ -7,11 +7,10 @@
 
 namespace DrupalRebuild;
 
-use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Yaml\Parser;
 use Symfony\Component\Yaml\Exception\ParseException;
-use Symfony\Component\Yaml\Dumper;
 use DrupalRebuild\Drush\Drush;
+use DrupalRebuild\Steps\DrushScript;
 
 class DrupalRebuild
 {
@@ -20,18 +19,33 @@ class DrupalRebuild
     private $environment;
     private $target;
     private $outputHandler;
+    public $drush;
 
-    public function __construct($target)
+    public function __construct()
+    {
+
+    }
+
+    public function init($target)
     {
         $this->setTarget($target);
         $this->drush = new Drush();
-        $this->setEnvironment();
-        $this->setConfig();
+        if (!$this->setEnvironment()) {
+            return false;
+        }
+        if (!$this->setConfig()) {
+            return false;
+        }
     }
 
     public function run()
     {
         // Call subclasses.
+        $pre_process = new DrushScript('pre_process');
+        if (!$pre_process->execute()) {
+            return FALSE;
+        }
+
     }
 
     /**
@@ -49,28 +63,28 @@ class DrupalRebuild
     {
         $env = $this->getEnvironment();
         $rebuild_config_path = $env['path-aliases']['%rebuild'];
-    // Check if the file exists.
-    if (!file_exists($rebuild_config_path)) {
-        // return error.
-    }
+        // Check if the file exists.
+        if (!file_exists($rebuild_config_path)) {
+            // return error.
+        }
 
-    // Check if file is YAML format.
-    $yaml = new Parser();
-    try {
-      $config = $yaml->parse(file_get_contents($rebuild_config_path));
-      // Allow overriding the default target.
-      $config['general']['target'] = $this->target;
-      // Load overrides.
-      $this->config = $config;
-      $this->setConfigOverrides();
-      return $this;
-    }
-    catch (ParseException $e) {
-      // drush_set_error(dt("Unable to parse the YAML string: %s", array('%s' => $e->getMessage())));
-    }
-    return TRUE;
-    }
+        // Check if file is YAML format.
+        $yaml = new Parser();
+        try {
+            $config = $yaml->parse(file_get_contents($rebuild_config_path));
+            // Allow overriding the default target.
+            $config['general']['target'] = $this->target;
+            // Load overrides.
+            $this->config = $config;
+            $this->setConfigOverrides();
+            print_r($config);
+            return $this;
+        } catch (ParseException $e) {
+            // drush_set_error(dt("Unable to parse the YAML string: %s", array('%s' => $e->getMessage())));
+        }
 
+        return true;
+    }
 
     public function setTarget($target)
     {
@@ -79,12 +93,20 @@ class DrupalRebuild
 
     public function setEnvironment()
     {
-        $environment = $this->drush->runCommand('@none', 'site-alias', array($this->getTarget()))
-        ->parseBackendOutput();
-        $this->environment = array_shift($environment['object']);
+        $environment = $this->drush->runCommand('@none', 'site-alias', array($this->getTarget()));
+        if ($this->drush->getErrorStatus() == 1) {
+            $output = $this->getOutputHandler();
+            $output->writeln(sprintf('<error>%s</error>', $this->drush->getErrorLogString()));
+
+            return false;
+        }
+        $backend_output = $this->drush->getParsedBackendOutput();
+        $this->environment = array_shift($backend_output['object']);
+        return true;
     }
 
-    protected function getConfigOverridesPath() {
+    protected function getConfigOverridesPath()
+    {
     $rebuild_config = $this->getConfig();
     // Check if the overrides file is defined as a full path.
     if (file_exists($rebuild_config['general']['overrides'])) {
@@ -102,7 +124,8 @@ class DrupalRebuild
     return FALSE;
   }
 
-    public function setConfigOverrides() {
+    public function setConfigOverrides()
+    {
         $rebuild_config = $this->config;
     if (!isset($rebuild_config['general']['overrides'])) {
       return;
@@ -113,13 +136,12 @@ class DrupalRebuild
         // drush_log(dt('Loading config overrides from !file', array('!file' => $rebuild_config['general']['overrides'])), 'success');
         $rebuild_config = array_merge_recursive($rebuild_config, $rebuild_config_overrides);
         $this->setConfig($rebuild_config);
+
         return TRUE;
-      }
-      else {
+      } else {
         // return drush_set_error(dt('Failed to load overrides file! Check that it is valid YAML format.'));
       }
-    }
-    else {
+    } else {
       // return drush_set_error(dt('Could not load the overrides file.'));
     }
   }

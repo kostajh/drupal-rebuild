@@ -8,12 +8,13 @@
 /**
  * Provides methods for diagnosing rebuild configuration.
  */
-class Diagnostics extends DrushRebuild {
-
+class Diagnostics extends DrushRebuild
+{
   /**
    * Constructor.
    */
-  public function __construct(DrushRebuild $drush_rebuild) {
+  public function __construct(DrushRebuild $drush_rebuild)
+  {
     $this->environment = $drush_rebuild->environment;
     $this->target = $drush_rebuild->target;
     if (isset($drush_rebuild->source)) {
@@ -30,20 +31,20 @@ class Diagnostics extends DrushRebuild {
    * @return bool
    *   TRUE if successful, array of errors if not.
    */
-  public function execute() {
+  public function execute()
+  {
   }
-
 
   /**
    * Checks if the rebuild file is a drush script (pre-7.x-1.1).
    */
-  public function isLegacy() {
+  public function isLegacy()
+  {
     if (isset($this->environment['path-aliases']['%local-tasks']) &&
       file_exists($this->environment['path-aliases']['%local-tasks'] . '/tasks.php') &&
       !isset($this->environment['path-aliases']['%rebuild']) && !file_exists($this->environment['path-aliases']['%rebuild'])) {
       return TRUE;
-    }
-    else {
+    } else {
       return FALSE;
     }
   }
@@ -54,18 +55,19 @@ class Diagnostics extends DrushRebuild {
    * @return array
    *   Return a $config array or FALSE if not INI format.
    */
-  public function isIni() {
+  public function isIni()
+  {
     if (isset($this->environment['path-aliases']['%rebuild'])) {
       try {
         $config = parse_ini_file($this->environment['path-aliases']['%rebuild']);
         if (!empty($config)) {
           return $config;
         }
-      }
-      catch (Exception $e) {
+      } catch (Exception $e) {
         return FALSE;
       }
     }
+
     return FALSE;
   }
 
@@ -75,28 +77,29 @@ class Diagnostics extends DrushRebuild {
    * @return array
    *   TRUE if valid, array of invalid keys otherwise.
    */
-  public function validateConfig() {
-
+  public function validateConfig()
+  {
   }
 
   /**
    * Ensure the DB credentials for the target are valid and that the DB exists.
    */
-  public function checkDatabaseAccess() {
-
+  public function checkDatabaseAccess()
+  {
   }
 
   /**
    * Check if the database exists.
    */
-  public function checkDatabaseExists() {
-
+  public function checkDatabaseExists()
+  {
   }
 
   /**
    * Verifies a completed rebuild.
    */
-  public function verifyCompletedRebuild() {
+  public function verifyCompletedRebuild()
+  {
     // Check to see if we can bootstrap to the site.
     return TRUE;
   }

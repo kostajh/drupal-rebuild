@@ -5,7 +5,6 @@ namespace DrupalRebuild\Drush;
 use DrupalRebuild;
 
 use Symfony\Component\Process\Process;
-use Symfony\Component\Process\ProcessBuilder;
 
 define('DRUPAL_REBUILD_BACKEND_OUTPUT_START', 'DRUSH_BACKEND_OUTPUT_START>>>');
 define('DRUPAL_REBUILD_BACKEND_OUTPUT_DELIMITER', DRUPAL_REBUILD_BACKEND_OUTPUT_START . '%s<<<DRUSH_BACKEND_OUTPUT_END');
@@ -16,6 +15,9 @@ class Drush
     private $drushExecutable;
     private $process;
     private $backendOutput;
+    private $errorStatus = 0;
+    private $errorLog = array();
+    private $errorLogString;
 
     public function __construct($drushExecutable = '')
     {
@@ -39,10 +41,16 @@ class Drush
         $process->run();
         $this->process = $process;
         $this->backendOutput = $process->getOutput();
+        $this->parsedBackendOutput = $this->parseBackendOutput();
+        if ($this->parsedBackendOutput['error_status'] == 1) {
+            $this->setErrorStatus(1);
+            $this->setErrorLog($this->parsedBackendOutput['error_log']);
+        }
+
         return $this;
      }
 
-     public function parseBackendOutput()
+     private function parseBackendOutput()
      {
         $string = $this->backendOutput;
         $regex = sprintf(DRUPAL_REBUILD_BACKEND_OUTPUT_DELIMITER, '(.*)');
@@ -60,6 +68,59 @@ class Drush
                 return $data;
             }
         }
+
         return $string;
+     }
+
+     public function setErrorStatus($status)
+     {
+        $this->errorStatus = $status;
+
+        return $this;
+     }
+
+     public function setErrorLog($log)
+     {
+        $this->errorLog = $log;
+        $this->setErrorLogString($log);
+
+        return $this;
+     }
+
+     private function setErrorLogString()
+     {
+        $log = $this->errorLog;
+        $string = '';
+        foreach ($log as $type => $message) {
+            $string .= sprintf('%s: %s', $type, implode(', ', $message));
+        }
+        $this->errorLogString = $string;
+
+        return $this;
+     }
+
+     public function getErrorStatus()
+     {
+        return $this->errorStatus;
+     }
+
+     public function getErrorLog()
+     {
+        return $this->errorLog;
+     }
+
+     public function getErrorLogString()
+     {
+        return $this->errorLogString;
+     }
+
+     public function getBackendOutput()
+     {
+        return $this->backendOutput();
+     }
+
+     public function getParsedBackendOutput()
+     {
+        return $this->parsedBackendOutput;
      }
 }
