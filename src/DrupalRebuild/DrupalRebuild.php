@@ -43,7 +43,7 @@ class DrupalRebuild
         // Call subclasses.
         $pre_process = new DrushScript('pre_process');
         if (!$pre_process->execute()) {
-            return FALSE;
+            return false;
         }
 
     }
@@ -93,7 +93,7 @@ class DrupalRebuild
 
     public function setEnvironment()
     {
-        $environment = $this->drush->runCommand('@none', 'site-alias', array($this->getTarget()));
+        $this->drush->runCommand('@none', 'site-alias', array($this->getTarget()));
         if ($this->drush->getErrorStatus() == 1) {
             $output = $this->getOutputHandler();
             $output->writeln(sprintf('<error>%s</error>', $this->drush->getErrorLogString()));
@@ -107,44 +107,43 @@ class DrupalRebuild
 
     protected function getConfigOverridesPath()
     {
-    $rebuild_config = $this->getConfig();
-    // Check if the overrides file is defined as a full path.
-    if (file_exists($rebuild_config['general']['overrides'])) {
-      return $rebuild_config['general']['overrides'];
+        $rebuild_config = $this->getConfig();
+        // Check if the overrides file is defined as a full path.
+        if (file_exists($rebuild_config['general']['overrides'])) {
+            return $rebuild_config['general']['overrides'];
+        }
+        // If not a full path, check if it is in the same directory with the main
+        // rebuild mainfest.
+        $rebuild_config_path = $this->environment['path-aliases']['%rebuild'];
+        // Get directory of rebuild.info
+        $rebuild_conf_dir = str_replace(basename($this->environment['path-aliases']['%rebuild']), '', $rebuild_config_path);
+        if (file_exists($rebuild_conf_dir . '/' . $rebuild_config['general']['overrides'])) {
+            return $rebuild_conf_dir . '/' . $rebuild_config['general']['overrides'];
+        }
+        // Could not find the file, return FALSE.
+        return false;
     }
-    // If not a full path, check if it is in the same directory with the main
-    // rebuild mainfest.
-    $rebuild_config_path = $this->environment['path-aliases']['%rebuild'];
-    // Get directory of rebuild.info
-    $rebuild_config_directory = str_replace(basename($this->environment['path-aliases']['%rebuild']), '', $rebuild_config_path);
-    if (file_exists($rebuild_config_directory . '/' . $rebuild_config['general']['overrides'])) {
-      return $rebuild_config_directory . '/' . $rebuild_config['general']['overrides'];
-    }
-    // Could not find the file, return FALSE.
-    return FALSE;
-  }
 
     public function setConfigOverrides()
     {
         $rebuild_config = $this->config;
-    if (!isset($rebuild_config['general']['overrides'])) {
-      return;
+        if (!isset($rebuild_config['general']['overrides'])) {
+            return;
+        }
+        if ($overrides_path = $this->getConfigOverridesPath()) {
+            $yaml = new Parser();
+            if ($rebuild_overrides = $yaml->parse(file_get_contents($overrides_path))) {
+                // drush_log(dt('Loading config overrides from !file', array('!file' => $rebuild_config['general']['overrides'])), 'success');
+                $rebuild_config = array_merge_recursive($rebuild_config, $rebuild_overrides);
+                $this->setConfig($rebuild_config);
+                return true;
+            } else {
+                // return drush_set_error(dt('Failed to load overrides file! Check that it is valid YAML format.'));
+            }
+        } else {
+            // return drush_set_error(dt('Could not load the overrides file.'));
+        }
     }
-    if ($overrides_path = $this->getConfigOverridesPath()) {
-      $yaml = new Parser();
-      if ($rebuild_config_overrides = $yaml->parse(file_get_contents($overrides_path))) {
-        // drush_log(dt('Loading config overrides from !file', array('!file' => $rebuild_config['general']['overrides'])), 'success');
-        $rebuild_config = array_merge_recursive($rebuild_config, $rebuild_config_overrides);
-        $this->setConfig($rebuild_config);
-
-        return TRUE;
-      } else {
-        // return drush_set_error(dt('Failed to load overrides file! Check that it is valid YAML format.'));
-      }
-    } else {
-      // return drush_set_error(dt('Could not load the overrides file.'));
-    }
-  }
 
     public function setOutputHandler($output)
     {
@@ -165,5 +164,4 @@ class DrupalRebuild
     {
         return $this->outputHandler;
     }
-
 }
