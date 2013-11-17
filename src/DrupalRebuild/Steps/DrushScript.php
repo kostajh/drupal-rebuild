@@ -7,37 +7,35 @@
 
 namespace DrupalRebuild\Steps;
 
+use DrupalRebuild\DrupalRebuild;
 
 /**
  * Handles executing drush scripts.
  */
-class DrushScript {
+class DrushScript extends DrupalRebuild
+{
 
-  /**
-   * Constructor.
-   *
-   * @param string $state
-   *   Where we are in the rebuild process. Valid options are 'pre_process',
-   *   'post_process' and 'legacy'.
-   * @param string $script
-   *   Optional; provide the path to the script to execute.
-   */
-  public function __construct($state, $script = NULL) {
+    public $outputHandler;
 
-  }
+    public function __construct()
+    {
+        parent::__construct();
+    }
 
-  /**
-   * Operate in legacy mode. Execute a drush-script to rebuild a site.
-   */
-  public function legacyMode() {
 
-  }
-
-  /**
-   * Start executing drush scripts.
-   */
-  public function execute() {
-
-  }
-
+    /**
+    * Start executing drush scripts.
+    */
+    public function execute()
+    {
+        $drush = parent::getDrush();
+        $drush->runCommand('@none', 'corz-status');
+        if ($error_log = $drush->getErrorLog()) {
+            // Show error.
+            foreach ($error_log as $type => $error) {
+                $errors[$type] = array_shift($error);
+            }
+            $this->writeOutput(implode("\n", $errors), 'error');
+        }
+    }
 }

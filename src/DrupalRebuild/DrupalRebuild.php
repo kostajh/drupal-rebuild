@@ -9,27 +9,27 @@ namespace DrupalRebuild;
 
 use Symfony\Component\Yaml\Parser;
 use Symfony\Component\Yaml\Exception\ParseException;
+use Symfony\Component\Console\Output\OutputInterface;
 use DrupalRebuild\Drush\Drush;
 use DrupalRebuild\Steps\DrushScript;
 
 class DrupalRebuild
 {
 
-    private $config;
-    private $environment;
-    private $target;
-    private $outputHandler;
+    public $config;
+    public $environment;
+    public $target;
+    public $outputHandler;
     public $drush;
 
     public function __construct()
     {
-
+        $this->drush = new Drush();
     }
 
     public function init($target)
     {
         $this->setTarget($target);
-        $this->drush = new Drush();
         if (!$this->setEnvironment()) {
             return false;
         }
@@ -40,13 +40,67 @@ class DrupalRebuild
 
     public function run()
     {
-        // Call subclasses.
-        $pre_process = new DrushScript('pre_process');
-        if (!$pre_process->execute()) {
-            return false;
-        }
-
+        // Call processes.
+        // Pre process scripts.
+        $this->DrushScript('pre_process');
+        // Post process scripts.
+        $this->DrushScript('post_process');
     }
+
+    public function drushScript($state)
+    {
+        if ($state == 'pre_process') {
+            $target = '@none';
+            $step = 'Drush Script - Pre Process';
+        } else {
+            $target = $this->target;
+            $step = 'Drush Script - Post Process';
+        }
+        // Get scripts.
+        $scripts = isset($this->config['drush_scripts'][$state]) ? $this->config['drush_scripts'][$state] : array();
+        if (!$scripts) {
+            return;
+        }
+        foreach ($scripts as $script) {
+            $rebuild_filepath = $this->environment['path-aliases']['%rebuild'];
+            $file = str_replace(basename($rebuild_filepath), $script, $rebuild_filepath);
+            if (file_exists($file)) {
+                $this->outputHandler->writeln(sprintf('<info>Executing script \'%s\'', $script));
+                $this->drush->runCommand($target, 'php-script', array($file));
+                $backend_output = $this->drush->getParsedBackendOutput();
+                if ($backend_output) {
+                    $this->outputResults(sprintf('<comment>%s</comment>', $backend_output['output']), $step);
+                }
+                $this->outputResults(sprintf('<info>Successfully executed script \'%s\'<info>', $script), $step);
+            } else {
+                $this->outputHandler(sprintf('Failed to load script %s', $script), 'error');
+            }
+
+        }
+    }
+
+    public function outputResults($message, $step)
+    {
+        if ($this->drush->getErrorStatus() === 0) {
+            return $this->writeOutput($message, 'info');
+        } else {
+            return $this->outputErrors($step);
+        }
+    }
+
+    public function outputErrors($step)
+    {
+        if ($error_log = $this->drush->getErrorLog()) {
+            // Show error.
+            foreach ($error_log as $type => $error) {
+                $errors[$type] = array_shift($error);
+            }
+            $this->writeOutput(sprintf("ERROR: Rebuild failed on '%s'", $step), 'error');
+            $this->writeOutput(implode("\n", $errors), 'error');
+        }
+        return false;
+    }
+
 
     /**
     * Load the rebuild info config.
@@ -77,7 +131,6 @@ class DrupalRebuild
             // Load overrides.
             $this->config = $config;
             $this->setConfigOverrides();
-            print_r($config);
             return $this;
         } catch (ParseException $e) {
             // drush_set_error(dt("Unable to parse the YAML string: %s", array('%s' => $e->getMessage())));
@@ -97,7 +150,6 @@ class DrupalRebuild
         if ($this->drush->getErrorStatus() == 1) {
             $output = $this->getOutputHandler();
             $output->writeln(sprintf('<error>%s</error>', $this->drush->getErrorLogString()));
-
             return false;
         }
         $backend_output = $this->drush->getParsedBackendOutput();
@@ -150,6 +202,15 @@ class DrupalRebuild
         $this->outputHandler = $output;
     }
 
+    public function writeOutput($message, $type)
+    {
+        $type_start = sprintf('<%s>', $type);
+        $type_end = sprintf('</%s>', $type);
+        $output = $this->getOutputHandler();
+        $output->writeln(sprintf('%s%s%s', $type_start, $message, $type_end));
+        return true;
+    }
+
     public function getTarget()
     {
         return $this->target;
@@ -163,5 +224,10 @@ class DrupalRebuild
     public function getOutputHandler()
     {
         return $this->outputHandler;
+    }
+
+    public function getDrush()
+    {
+        return $this->drush;
     }
 }

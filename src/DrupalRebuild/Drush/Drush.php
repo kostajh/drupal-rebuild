@@ -31,9 +31,13 @@ class Drush
         $cmd[] = $this->drushExecutable;
         $cmd[] = $env;
         $cmd[] = $command;
-        $cmd[] = implode(' ', $args);
-        foreach ($options as $name => $value) {
-          $cmd[] = sprintf('--%s=%s', $name, $value);
+        if (count($args)) {
+            $cmd[] = implode(' ', $args);
+        }
+        if (count($options)) {
+            foreach ($options as $name => $value) {
+              $cmd[] = sprintf('--%s=%s', $name, $value);
+            }
         }
         $cmd[] = '--backend';
         $cmd_string = implode(' ', $cmd);
