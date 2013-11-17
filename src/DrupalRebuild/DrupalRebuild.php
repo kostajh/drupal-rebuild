@@ -16,18 +16,18 @@ use DrupalRebuild\Steps\DrushScript;
 class DrupalRebuild
 {
 
-    public $config;
-    public $environment;
-    public $target;
-    public $outputHandler;
-    public $drush;
+    public static $config = array();
+    public static $environment = array();
+    public static $target;
+    public static $outputHandler;
+    public static $drush;
 
     public function __construct()
     {
-        $this->drush = new Drush();
+        self::$drush = new Drush();
     }
 
-    public function init($target)
+    public function initialize($target)
     {
         $this->setTarget($target);
         if (!$this->setEnvironment()) {
@@ -36,52 +36,74 @@ class DrupalRebuild
         if (!$this->setConfig()) {
             return false;
         }
+        return true;
     }
 
     public function run()
     {
         // Call processes.
         // Pre process scripts.
-        $this->DrushScript('pre_process');
+        $drush_script = new DrushScript('pre_process');
+        if (!$drush_script->run()) {
+            return false;
+        }
+        // Site install.
+        $this->doSiteInstall();
+        // SQL Sync
+        $this->doSqlSync();
+        // Rsync
+        $this->doRsync();
+        // Variables
+        $this->doVariables();
+        // Modules
+        $this->doModules();
+        // Permissions
+        $this->doPermissions();
         // Post process scripts.
-        $this->DrushScript('post_process');
+        $drush_script = new DrushScript('post_process');
+
+        // User login.
+        $this->doUserLogin();
     }
 
-    public function drushScript($state)
+    public function doSiteInstall()
     {
-        if ($state == 'pre_process') {
-            $target = '@none';
-            $step = 'Drush Script - Pre Process';
-        } else {
-            $target = $this->target;
-            $step = 'Drush Script - Post Process';
-        }
-        // Get scripts.
-        $scripts = isset($this->config['drush_scripts'][$state]) ? $this->config['drush_scripts'][$state] : array();
-        if (!$scripts) {
-            return;
-        }
-        foreach ($scripts as $script) {
-            $rebuild_filepath = $this->environment['path-aliases']['%rebuild'];
-            $file = str_replace(basename($rebuild_filepath), $script, $rebuild_filepath);
-            if (file_exists($file)) {
-                $this->outputHandler->writeln(sprintf('<info>Executing script \'%s\'', $script));
-                $this->drush->runCommand($target, 'php-script', array($file));
-                $backend_output = $this->drush->getParsedBackendOutput();
-                if ($backend_output) {
-                    $this->outputResults(sprintf('<comment>%s</comment>', $backend_output['output']), $step);
-                }
-                $this->outputResults(sprintf('<info>Successfully executed script \'%s\'<info>', $script), $step);
-            } else {
-                $this->outputHandler(sprintf('Failed to load script %s', $script), 'error');
-            }
 
-        }
+    }
+
+    public function doSqlSync()
+    {
+
+    }
+
+    public function doRsync()
+    {
+
+    }
+
+    public function doVariables()
+    {
+
+    }
+
+    public function doModules()
+    {
+
+    }
+
+    public function doPermissions()
+    {
+
+    }
+
+    public function doUserLogin()
+    {
+
     }
 
     public function outputResults($message, $step)
     {
-        if ($this->drush->getErrorStatus() === 0) {
+        if (self::$drush->getErrorStatus() === 0) {
             return $this->writeOutput($message, 'info');
         } else {
             return $this->outputErrors($step);
@@ -90,7 +112,7 @@ class DrupalRebuild
 
     public function outputErrors($step)
     {
-        if ($error_log = $this->drush->getErrorLog()) {
+        if ($error_log = self::$drush->getErrorLog()) {
             // Show error.
             foreach ($error_log as $type => $error) {
                 $errors[$type] = array_shift($error);
@@ -110,7 +132,7 @@ class DrupalRebuild
     */
     public function getConfig()
     {
-        return $this->config;
+        return self::$config;
     }
 
     public function setConfig()
@@ -127,9 +149,9 @@ class DrupalRebuild
         try {
             $config = $yaml->parse(file_get_contents($rebuild_config_path));
             // Allow overriding the default target.
-            $config['general']['target'] = $this->target;
+            $config['general']['target'] = self::$target;
             // Load overrides.
-            $this->config = $config;
+            self::$config = $config;
             $this->setConfigOverrides();
             return $this;
         } catch (ParseException $e) {
@@ -141,19 +163,19 @@ class DrupalRebuild
 
     public function setTarget($target)
     {
-        $this->target = $target;
+        self::$target = $target;
     }
 
     public function setEnvironment()
     {
-        $this->drush->runCommand('@none', 'site-alias', array($this->getTarget()));
-        if ($this->drush->getErrorStatus() == 1) {
+        self::$drush->runCommand('@none', 'site-alias', array($this->getTarget()));
+        if (self::$drush->getErrorStatus() == 1) {
             $output = $this->getOutputHandler();
-            $output->writeln(sprintf('<error>%s</error>', $this->drush->getErrorLogString()));
+            $output->writeln(sprintf('<error>%s</error>', self::$drush->getErrorLogString()));
             return false;
         }
-        $backend_output = $this->drush->getParsedBackendOutput();
-        $this->environment = array_shift($backend_output['object']);
+        $backend_output = self::$drush->getParsedBackendOutput();
+        self::$environment = array_shift($backend_output['object']);
         return true;
     }
 
@@ -166,9 +188,9 @@ class DrupalRebuild
         }
         // If not a full path, check if it is in the same directory with the main
         // rebuild mainfest.
-        $rebuild_config_path = $this->environment['path-aliases']['%rebuild'];
+        $rebuild_config_path = self::$environment['path-aliases']['%rebuild'];
         // Get directory of rebuild.info
-        $rebuild_conf_dir = str_replace(basename($this->environment['path-aliases']['%rebuild']), '', $rebuild_config_path);
+        $rebuild_conf_dir = str_replace(basename(self::$environment['path-aliases']['%rebuild']), '', $rebuild_config_path);
         if (file_exists($rebuild_conf_dir . '/' . $rebuild_config['general']['overrides'])) {
             return $rebuild_conf_dir . '/' . $rebuild_config['general']['overrides'];
         }
@@ -178,7 +200,7 @@ class DrupalRebuild
 
     public function setConfigOverrides()
     {
-        $rebuild_config = $this->config;
+        $rebuild_config = self::$config;
         if (!isset($rebuild_config['general']['overrides'])) {
             return;
         }
@@ -199,7 +221,7 @@ class DrupalRebuild
 
     public function setOutputHandler($output)
     {
-        $this->outputHandler = $output;
+        self::$outputHandler = $output;
     }
 
     public function writeOutput($message, $type)
@@ -213,21 +235,21 @@ class DrupalRebuild
 
     public function getTarget()
     {
-        return $this->target;
+        return self::$target;
     }
 
     public function getEnvironment()
     {
-        return $this->environment;
+        return self::$environment;
     }
 
     public function getOutputHandler()
     {
-        return $this->outputHandler;
+        return self::$outputHandler;
     }
 
     public function getDrush()
     {
-        return $this->drush;
+        return self::$drush;
     }
 }

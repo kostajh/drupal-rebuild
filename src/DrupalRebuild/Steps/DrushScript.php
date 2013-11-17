@@ -15,27 +15,55 @@ use DrupalRebuild\DrupalRebuild;
 class DrushScript extends DrupalRebuild
 {
 
-    public $outputHandler;
+    public $state;
 
-    public function __construct()
+    public function __construct($state)
     {
         parent::__construct();
+        $this->state = $state;
+        $this->config = parent::getConfig();
+        $this->environment = parent::getEnvironment();
+        $this->outputHandler = parent::getOutputHandler();
+        $this->target = parent::getTarget();
+        $this->drush = parent::getDrush();
     }
 
 
     /**
     * Start executing drush scripts.
     */
-    public function execute()
+    public function run()
     {
-        $drush = parent::getDrush();
-        $drush->runCommand('@none', 'corz-status');
-        if ($error_log = $drush->getErrorLog()) {
-            // Show error.
-            foreach ($error_log as $type => $error) {
-                $errors[$type] = array_shift($error);
+        $state = $this->state;
+        if ($state == 'pre_process') {
+            $target = '@none';
+            $step = 'Drush Script - Pre Process';
+        } else {
+            $target = $this->target;
+            $step = 'Drush Script - Post Process';
+        }
+        // Get scripts.
+        $scripts = isset($this->config['drush_scripts'][$state]) ? $this->config['drush_scripts'][$state] : array();
+        if (!$scripts) {
+            return false;
+        }
+        foreach ($scripts as $script) {
+            $rebuild_filepath = $this->environment['path-aliases']['%rebuild'];
+            $file = str_replace(basename($rebuild_filepath), $script, $rebuild_filepath);
+            if (file_exists($file)) {
+                $this->outputHandler->writeln(sprintf('<info>Executing script \'%s\'', $script));
+                $this->drush->runCommand($target, 'php-script', array($file));
+                $backend_output = $this->drush->getParsedBackendOutput();
+                if ($backend_output) {
+                    $this->outputResults(sprintf('<comment>%s</comment>', $backend_output['output']), $step);
+                }
+                $this->outputResults(sprintf('<info>Successfully executed script \'%s\'<info>', $script), $step);
+            } else {
+                $this->outputHandler(sprintf('Failed to load script %s', $script), 'error');
             }
-            $this->writeOutput(implode("\n", $errors), 'error');
+            if ($this->drush->getErrorStatus() == 1) {
+                return false;
+            }
         }
     }
 }

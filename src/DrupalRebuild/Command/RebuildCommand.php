@@ -35,8 +35,7 @@ class RebuildCommand extends Command
         $rebuild = new DrupalRebuild();
         $rebuild->setOutputHandler($output);
         // TODO: Preflight.
-        $rebuild->init($alias);
-        if ($rebuild->drush->getErrorStatus() == 1) {
+        if (!$rebuild->initialize($alias)) {
             return false;
         }
         $env = $rebuild->getEnvironment();
